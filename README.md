@@ -72,6 +72,7 @@ IncidentLens AI is pre-configured with 3 realistic production incident scenarios
 
 ## Tech Stack
 
+- **Streamlit Dashboard**: Streamlit 1.35+, Dark Observability UI, Native Metrics, Charts & Interactive Chat
 - **Backend**: Python 3.10+, FastAPI, Pydantic v2, Uvicorn, Boto3, HTTPX, Pytest
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Recharts, Lucide Icons, Axios
 
@@ -87,7 +88,32 @@ IncidentLens AI is pre-configured with 3 realistic production incident scenarios
 
 ## Quick Start
 
-### 1. Backend Setup
+### Option A: Streamlit UI (Recommended for Hackathons & Streamlit Cloud)
+
+The fastest way to run and demo IncidentLens AI:
+
+```bash
+# Install root requirements
+pip install -r requirements.txt
+
+# Run the Streamlit interface
+streamlit run streamlit_app.py
+```
+
+The app will open automatically at `http://localhost:8501`.
+
+#### Deploying to Streamlit Community Cloud
+1. Fork or push this repository to GitHub: `https://github.com/akash-kumaar/incidentlens-ai`
+2. Go to [share.streamlit.io](https://share.streamlit.io/) and click **New app**.
+3. Select your repository: `akash-kumaar/incidentlens-ai`, Branch: `main`, Main file path: `streamlit_app.py`.
+4. (Optional) In **Advanced settings**, set any optional environment variables (`AI_PROVIDER=bedrock`, `AWS_REGION`, etc.). By default, it runs in **zero-dependency local mode**.
+5. Click **Deploy!**
+
+---
+
+### Option B: FastAPI Backend + React 19 Frontend
+
+#### 1. Backend Setup
 
 ```bash
 cd backend
