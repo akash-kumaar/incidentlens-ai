@@ -1,0 +1,526 @@
+import json
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+
+# ─── Scenario A: Deployment Regression ───────────────────────────────────────
+BASE_A = datetime(2026, 10, 23, 14, 20, 0)
+
+SCENARIO_A = {
+    "id": "scenario-deployment-regression",
+    "name": "API Deployment Regression",
+    "description": "API latency spiked and HTTP 500 errors increased sharply after the latest release. Some requests never return.",
+    "service": "api-gateway",
+    "severity": "critical",
+    "tags": ["deployment", "regression", "http-500"],
+    "metrics": {
+        "pre_incident": {
+            "error_rate": 0.4,
+            "p50_latency_ms": 42,
+            "p95_latency_ms": 180,
+            "p99_latency_ms": 340,
+            "request_rate": 820,
+            "availability": 99.98,
+            "cpu_percent": 28.0,
+            "memory_percent": 55.0,
+            "connection_utilization": 30.0,
+        },
+        "post_incident": {
+            "error_rate": 18.4,
+            "p50_latency_ms": 1240,
+            "p95_latency_ms": 4800,
+            "p99_latency_ms": 9200,
+            "request_rate": 790,
+            "availability": 81.6,
+            "cpu_percent": 71.0,
+            "memory_percent": 57.0,
+            "connection_utilization": 34.0,
+        },
+    },
+    "timeline_events": [
+        {
+            "timestamp": (BASE_A).isoformat(),
+            "type": "alert",
+            "title": "Incident Detected",
+            "description": "PagerDuty fired: API error rate above 15% threshold",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=35)).isoformat(),
+            "type": "deployment",
+            "title": "Deployment: api-2.4.1",
+            "description": "Deployment of api-2.4.1 completed successfully. Changelog: refactored request-handling middleware.",
+            "severity": "info",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=32)).isoformat(),
+            "type": "metric_change",
+            "title": "Error Rate Rising",
+            "description": "HTTP 500 error rate climbed from 0.4% to 6.1% within 3 minutes of deployment.",
+            "severity": "warning",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=28)).isoformat(),
+            "type": "metric_change",
+            "title": "Latency Spike Detected",
+            "description": "P95 latency crossed 2 000 ms. Requests piling up behind middleware bottleneck.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=25)).isoformat(),
+            "type": "log_event",
+            "title": "Exception: RequestProcessingError",
+            "description": "Repeated NullPointerException in RequestMiddleware.process() — new code path introduced in api-2.4.1.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=20)).isoformat(),
+            "type": "alert",
+            "title": "SLO Breach",
+            "description": "Availability dropped below 90%. SLO breach alert fired.",
+            "severity": "critical",
+        },
+    ],
+    "logs": [
+        {
+            "timestamp": (BASE_A - timedelta(minutes=34, seconds=12)).isoformat(),
+            "level": "ERROR",
+            "service": "api-gateway",
+            "correlation_id": "req-7a3f91b2",
+            "message": "RequestProcessingError: NullPointerException at RequestMiddleware.process() line 247 — field 'x-request-context' is null",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=33, seconds=55)).isoformat(),
+            "level": "ERROR",
+            "service": "api-gateway",
+            "correlation_id": "req-2c8d04e1",
+            "message": "Unhandled exception: Cannot read property 'userId' of undefined in AuthorizationMiddleware",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=33, seconds=10)).isoformat(),
+            "level": "WARN",
+            "service": "api-gateway",
+            "correlation_id": "req-5f1e72a9",
+            "message": "Request timeout after 5000 ms — upstream service did not respond",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=32, seconds=30)).isoformat(),
+            "level": "ERROR",
+            "service": "api-gateway",
+            "correlation_id": "req-9b4c38d7",
+            "message": "HTTP 500 returned to client — internal server error in middleware chain",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=31, seconds=45)).isoformat(),
+            "level": "ERROR",
+            "service": "api-gateway",
+            "correlation_id": "req-3d7a19f4",
+            "message": "RequestProcessingError: NullPointerException at RequestMiddleware.process() line 247",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=30, seconds=20)).isoformat(),
+            "level": "INFO",
+            "service": "api-gateway",
+            "correlation_id": "req-8e2b56c3",
+            "message": "Health check passed — /health endpoint returned 200 OK",
+        },
+        {
+            "timestamp": (BASE_A - timedelta(minutes=29, seconds=5)).isoformat(),
+            "level": "WARN",
+            "service": "api-gateway",
+            "correlation_id": "req-6a4f83e2",
+            "message": "Circuit breaker OPEN — downstream service unavailable after 10 consecutive failures",
+        },
+    ],
+    "deployments": [
+        {
+            "id": "deploy-api-2.4.1",
+            "version": "api-2.4.1",
+            "previous_version": "api-2.4.0",
+            "timestamp": (BASE_A - timedelta(minutes=35)).isoformat(),
+            "status": "completed",
+            "deployed_by": "ci-pipeline",
+            "change_summary": "Refactored request-handling middleware. Removed legacy context-propagation layer. Added streaming response support.",
+            "files_changed": 14,
+            "risk_level": "medium",
+        },
+        {
+            "id": "deploy-api-2.4.0",
+            "version": "api-2.4.0",
+            "previous_version": "api-2.3.9",
+            "timestamp": (BASE_A - timedelta(days=3)).isoformat(),
+            "status": "completed",
+            "deployed_by": "ci-pipeline",
+            "change_summary": "Minor dependency updates. Bumped logging library to v4.2.1.",
+            "files_changed": 3,
+            "risk_level": "low",
+        },
+    ],
+    "remediation_actions": [
+        {
+            "id": "rollback-api-2.4.0",
+            "type": "rollback",
+            "title": "Roll back to api-2.4.0",
+            "description": "Revert the api-gateway service to the previous stable release api-2.4.0.",
+            "expected_outcome": "Error rate should return to baseline (< 1%) within 2-3 minutes.",
+            "risks": ["Brief service interruption during rollback (~30 s)", "Any api-2.4.1 data written since deployment may need migration"],
+            "verification": ["Error rate drops below 1%", "P95 latency returns below 300 ms", "No new RequestProcessingError logs"],
+        }
+    ],
+    "expected_hypothesis": "deployment-regression",
+    "resolution": {
+        "action_taken": "Rolled back api-gateway to api-2.4.0",
+        "result": "Error rate returned to 0.3%. P95 latency: 185 ms. Service availability: 99.97%.",
+        "verification_passed": True,
+    },
+}
+
+# ─── Scenario B: Database Connection Exhaustion ──────────────────────────────
+BASE_B = datetime(2026, 10, 22, 10, 5, 0)
+
+SCENARIO_B = {
+    "id": "scenario-db-connection-exhaustion",
+    "name": "Database Connection Pool Exhaustion",
+    "description": "API requests are timing out. Database connection pool is nearly full. New requests queue and eventually fail.",
+    "service": "user-service",
+    "severity": "high",
+    "tags": ["database", "connection-pool", "timeout"],
+    "metrics": {
+        "pre_incident": {
+            "error_rate": 0.2,
+            "p50_latency_ms": 60,
+            "p95_latency_ms": 210,
+            "p99_latency_ms": 450,
+            "request_rate": 340,
+            "availability": 99.95,
+            "cpu_percent": 22.0,
+            "memory_percent": 48.0,
+            "connection_utilization": 42.0,
+        },
+        "post_incident": {
+            "error_rate": 31.7,
+            "p50_latency_ms": 4800,
+            "p95_latency_ms": 28000,
+            "p99_latency_ms": 30000,
+            "request_rate": 310,
+            "availability": 68.3,
+            "cpu_percent": 19.0,
+            "memory_percent": 50.0,
+            "connection_utilization": 98.4,
+        },
+    },
+    "timeline_events": [
+        {
+            "timestamp": (BASE_B).isoformat(),
+            "type": "alert",
+            "title": "Incident Detected",
+            "description": "Alert fired: DB connection pool utilization exceeded 95% for 5 consecutive minutes.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=45)).isoformat(),
+            "type": "metric_change",
+            "title": "Connection Pool Climbing",
+            "description": "DB connection utilization gradually increasing from 42% baseline — slow leak suspected.",
+            "severity": "info",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=20)).isoformat(),
+            "type": "metric_change",
+            "title": "Pool Utilization Critical",
+            "description": "DB pool utilization reached 85%. New requests beginning to queue.",
+            "severity": "warning",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=10)).isoformat(),
+            "type": "log_event",
+            "title": "Connection Timeout Errors",
+            "description": "First batch of connection-timeout errors: cannot acquire connection from pool within 30 s.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=5)).isoformat(),
+            "type": "metric_change",
+            "title": "Request Failure Rate Rising",
+            "description": "API error rate climbed to 31.7% as requests exhaust connection wait timeout.",
+            "severity": "critical",
+        },
+    ],
+    "logs": [
+        {
+            "timestamp": (BASE_B - timedelta(minutes=12, seconds=44)).isoformat(),
+            "level": "WARN",
+            "service": "user-service",
+            "correlation_id": "req-a1b2c3d4",
+            "message": "ConnectionPoolWarning: pool utilization at 82% — consider scaling pool or investigating long-running queries",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=10, seconds=15)).isoformat(),
+            "level": "ERROR",
+            "service": "user-service",
+            "correlation_id": "req-e5f6a7b8",
+            "message": "ConnectionTimeoutError: unable to acquire database connection within 30000 ms — pool exhausted (100/100 connections active)",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=9, seconds=30)).isoformat(),
+            "level": "ERROR",
+            "service": "user-service",
+            "correlation_id": "req-c9d0e1f2",
+            "message": "ConnectionTimeoutError: unable to acquire database connection within 30000 ms",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=8, seconds=20)).isoformat(),
+            "level": "ERROR",
+            "service": "user-service",
+            "correlation_id": "req-g3h4i5j6",
+            "message": "DatabaseError: query exceeded max execution time of 60 s — slow query detected on table user_sessions",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=7, seconds=10)).isoformat(),
+            "level": "WARN",
+            "service": "user-service",
+            "correlation_id": "req-k7l8m9n0",
+            "message": "Slow query detected: SELECT * FROM user_sessions WHERE last_active > ? took 42 s — missing index suspected",
+        },
+        {
+            "timestamp": (BASE_B - timedelta(minutes=6, seconds=5)).isoformat(),
+            "level": "ERROR",
+            "service": "user-service",
+            "correlation_id": "req-p1q2r3s4",
+            "message": "HTTP 503 returned: Service temporarily unavailable — cannot process request, database connection unavailable",
+        },
+    ],
+    "deployments": [
+        {
+            "id": "deploy-user-service-3.1.2",
+            "version": "user-service-3.1.2",
+            "previous_version": "user-service-3.1.1",
+            "timestamp": (BASE_B - timedelta(days=1)).isoformat(),
+            "status": "completed",
+            "deployed_by": "ci-pipeline",
+            "change_summary": "Added session analytics feature. New queries on user_sessions table added.",
+            "files_changed": 7,
+            "risk_level": "low",
+        }
+    ],
+    "remediation_actions": [
+        {
+            "id": "restart-connection-pool",
+            "type": "service_restart",
+            "title": "Restart user-service and reset connection pool",
+            "description": "Gracefully restart user-service to close leaked connections and reset pool to healthy state.",
+            "expected_outcome": "Pool utilization should drop to ~40%. Error rate should normalize within 2 minutes.",
+            "risks": ["In-flight requests will fail (~5 s window)", "Active sessions may need re-authentication"],
+            "verification": ["Pool utilization drops below 60%", "Error rate drops below 1%", "No new ConnectionTimeoutError logs"],
+        }
+    ],
+    "expected_hypothesis": "db-connection-exhaustion",
+    "resolution": {
+        "action_taken": "Restarted user-service, connection pool reset",
+        "result": "Pool utilization: 38%. Error rate: 0.2%. P95 latency: 215 ms.",
+        "verification_passed": True,
+    },
+}
+
+# ─── Scenario C: Memory Pressure ─────────────────────────────────────────────
+BASE_C = datetime(2026, 10, 21, 8, 45, 0)
+
+SCENARIO_C = {
+    "id": "scenario-memory-pressure",
+    "name": "Container Memory Pressure & OOM Restarts",
+    "description": "The order-processor container is restarting repeatedly. Error rates spike around each restart, causing intermittent service availability.",
+    "service": "order-processor",
+    "severity": "high",
+    "tags": ["memory", "oom", "container-restart"],
+    "metrics": {
+        "pre_incident": {
+            "error_rate": 0.3,
+            "p50_latency_ms": 85,
+            "p95_latency_ms": 310,
+            "p99_latency_ms": 620,
+            "request_rate": 550,
+            "availability": 99.92,
+            "cpu_percent": 35.0,
+            "memory_percent": 62.0,
+            "connection_utilization": 25.0,
+        },
+        "post_incident": {
+            "error_rate": 22.1,
+            "p50_latency_ms": 210,
+            "p95_latency_ms": 890,
+            "p99_latency_ms": 12000,
+            "request_rate": 520,
+            "availability": 77.9,
+            "cpu_percent": 38.0,
+            "memory_percent": 97.4,
+            "connection_utilization": 28.0,
+        },
+    },
+    "timeline_events": [
+        {
+            "timestamp": (BASE_C).isoformat(),
+            "type": "alert",
+            "title": "Incident Detected",
+            "description": "Alert: order-processor has restarted 4 times in the last 30 minutes. OOM kill suspected.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=35)).isoformat(),
+            "type": "metric_change",
+            "title": "Memory Climbing",
+            "description": "Container memory usage climbing steadily — from 62% to 75% over 15 minutes.",
+            "severity": "warning",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=28)).isoformat(),
+            "type": "log_event",
+            "title": "First OOM Restart",
+            "description": "Container killed by OOM killer. Restart #1. Memory at 96%.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=21)).isoformat(),
+            "type": "log_event",
+            "title": "Second OOM Restart",
+            "description": "Container killed by OOM killer. Restart #2. Memory rapidly rebuilding after restart.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=14)).isoformat(),
+            "type": "log_event",
+            "title": "Third OOM Restart",
+            "description": "Container killed by OOM killer. Restart #3. Pattern confirms memory leak.",
+            "severity": "critical",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=7)).isoformat(),
+            "type": "log_event",
+            "title": "Fourth OOM Restart",
+            "description": "Container killed by OOM killer. Restart #4. Service intermittently unavailable.",
+            "severity": "critical",
+        },
+    ],
+    "logs": [
+        {
+            "timestamp": (BASE_C - timedelta(minutes=34, seconds=50)).isoformat(),
+            "level": "WARN",
+            "service": "order-processor",
+            "correlation_id": "proc-a1c3e5f7",
+            "message": "MemoryWarning: heap usage at 78% — GC pressure increasing. Consider reviewing object retention.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=28, seconds=5)).isoformat(),
+            "level": "ERROR",
+            "service": "order-processor",
+            "correlation_id": "proc-b2d4f6h8",
+            "message": "FATAL: OOM Killer terminated process — container restart #1. Memory limit: 512 MiB, Usage: 511 MiB.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=27, seconds=45)).isoformat(),
+            "level": "INFO",
+            "service": "order-processor",
+            "correlation_id": "proc-restart-1",
+            "message": "Container restarted. Application initialization complete. Processing queue resumed.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=22, seconds=30)).isoformat(),
+            "level": "WARN",
+            "service": "order-processor",
+            "correlation_id": "proc-c3e5g7i9",
+            "message": "OrderCache: cache object count growing — 48 000 objects in LRU cache, eviction not triggering correctly.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=21, seconds=10)).isoformat(),
+            "level": "ERROR",
+            "service": "order-processor",
+            "correlation_id": "proc-d4f6h8j0",
+            "message": "FATAL: OOM Killer terminated process — container restart #2. Memory limit: 512 MiB, Usage: 512 MiB.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=16, seconds=0)).isoformat(),
+            "level": "ERROR",
+            "service": "order-processor",
+            "correlation_id": "proc-e5g7i9k1",
+            "message": "LRU cache eviction error: eviction callback raised AttributeError — items not being freed after processing.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=14, seconds=15)).isoformat(),
+            "level": "ERROR",
+            "service": "order-processor",
+            "correlation_id": "proc-f6h8j0l2",
+            "message": "FATAL: OOM Killer terminated process — container restart #3.",
+        },
+        {
+            "timestamp": (BASE_C - timedelta(minutes=7, seconds=20)).isoformat(),
+            "level": "ERROR",
+            "service": "order-processor",
+            "correlation_id": "proc-g7i9k1m3",
+            "message": "FATAL: OOM Killer terminated process — container restart #4.",
+        },
+    ],
+    "deployments": [
+        {
+            "id": "deploy-order-processor-2.2.0",
+            "version": "order-processor-2.2.0",
+            "previous_version": "order-processor-2.1.9",
+            "timestamp": (BASE_C - timedelta(hours=2)).isoformat(),
+            "status": "completed",
+            "deployed_by": "ci-pipeline",
+            "change_summary": "Added in-memory order caching using LRU cache for performance optimization.",
+            "files_changed": 6,
+            "risk_level": "medium",
+        }
+    ],
+    "remediation_actions": [
+        {
+            "id": "scale-memory-limit",
+            "type": "config_change",
+            "title": "Increase container memory limit to 1 GiB",
+            "description": "Temporarily increase container memory limit from 512 MiB to 1 GiB to prevent OOM kills while fix is deployed.",
+            "expected_outcome": "Container stops being OOM-killed. Restarts stop. Service availability restored.",
+            "risks": ["Higher resource cost", "Does not fix underlying memory leak — follow-up required"],
+            "verification": ["No OOM kills for 10 minutes", "Memory stabilizes below 80% of new limit", "Error rate returns below 1%"],
+        }
+    ],
+    "expected_hypothesis": "memory-pressure",
+    "resolution": {
+        "action_taken": "Container memory limit increased to 1 GiB in simulation",
+        "result": "Memory usage stabilized at 61%. No OOM restarts in 10-minute window. Error rate: 0.4%.",
+        "verification_passed": True,
+    },
+}
+
+ALL_SCENARIOS = {
+    "scenario-deployment-regression": SCENARIO_A,
+    "scenario-db-connection-exhaustion": SCENARIO_B,
+    "scenario-memory-pressure": SCENARIO_C,
+}
+
+SERVICES = {
+    "api-gateway": {
+        "id": "api-gateway",
+        "name": "API Gateway",
+        "description": "Public-facing REST API gateway handling all inbound client requests",
+        "team": "platform",
+        "environment": "production",
+        "language": "TypeScript",
+        "framework": "Express.js",
+    },
+    "user-service": {
+        "id": "user-service",
+        "name": "User Service",
+        "description": "Manages user profiles, authentication, and session management",
+        "team": "identity",
+        "environment": "production",
+        "language": "Java",
+        "framework": "Spring Boot",
+    },
+    "order-processor": {
+        "id": "order-processor",
+        "name": "Order Processor",
+        "description": "Processes incoming orders, manages order lifecycle, and coordinates fulfillment",
+        "team": "commerce",
+        "environment": "production",
+        "language": "Python",
+        "framework": "FastAPI",
+    },
+}
