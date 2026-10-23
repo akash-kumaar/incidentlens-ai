@@ -1,6 +1,8 @@
 """
 Core investigation engine — orchestrates all tools in sequence.
 """
+import os
+import json
 import asyncio
 import uuid
 import logging
@@ -23,15 +25,41 @@ from app.data.scenarios.scenario_data import ALL_SCENARIOS, SERVICES
 
 logger = logging.getLogger(__name__)
 
-# In-memory store (replace with SQLite for persistence)
+# File-backed shared store so FastAPI (React) and Streamlit stay synchronized
 _investigations: Dict[str, Investigation] = {}
+STORE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "investigations_store.json")
+
+
+def _load_store() -> Dict[str, Investigation]:
+    if not os.path.exists(STORE_FILE):
+        return _investigations
+    try:
+        with open(STORE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for k, v in data.items():
+                if k not in _investigations or _investigations[k].updated_at < v.get("updated_at", ""):
+                    _investigations[k] = Investigation(**v)
+    except Exception as e:
+        logger.warning(f"Could not load investigations store: {e}")
+    return _investigations
+
+
+def _save_store():
+    try:
+        os.makedirs(os.path.dirname(STORE_FILE), exist_ok=True)
+        with open(STORE_FILE, "w", encoding="utf-8") as f:
+            json.dump({k: v.model_dump() for k, v in _investigations.items()}, f, indent=2, default=str)
+    except Exception as e:
+        logger.warning(f"Could not save investigations store: {e}")
 
 
 def get_all_investigations():
+    _load_store()
     return list(_investigations.values())
 
 
 def get_investigation(investigation_id: str) -> Optional[Investigation]:
+    _load_store()
     return _investigations.get(investigation_id)
 
 
@@ -45,6 +73,7 @@ def create_investigation(incident_description: str, service: str, scenario_id: s
         status=InvestigationStatus.PENDING,
     )
     _investigations[inv.id] = inv
+    _save_store()
     return inv
 
 
@@ -283,6 +312,7 @@ async def _run_pipeline(inv: Investigation):
     inv.status = InvestigationStatus.AWAITING_APPROVAL if inv.remediation else InvestigationStatus.COMPLETED
     inv.progress = 100
     inv.updated_at = datetime.utcnow().isoformat()
+    _save_store()
 
 
 async def approve_remediation(investigation_id: str, approved: bool) -> Investigation:
@@ -296,6 +326,7 @@ async def approve_remediation(investigation_id: str, approved: bool) -> Investig
         inv.remediation.status = RemediationStatus.REJECTED
         inv.status = InvestigationStatus.COMPLETED
         inv.updated_at = datetime.utcnow().isoformat()
+        _save_store()
         return inv
 
     # Execute simulation
@@ -313,6 +344,7 @@ async def approve_remediation(investigation_id: str, approved: bool) -> Investig
         inv.remediation.status = RemediationStatus.FAILED
         inv.error = str(e)
         inv.status = InvestigationStatus.FAILED
+        _save_store()
         return inv
 
     # Verify recovery
@@ -333,6 +365,7 @@ async def approve_remediation(investigation_id: str, approved: bool) -> Investig
     inv.status = InvestigationStatus.COMPLETED
     inv.completed_at = datetime.utcnow().isoformat()
     inv.updated_at = datetime.utcnow().isoformat()
+    _save_store()
     return inv
 
 
@@ -356,6 +389,7 @@ async def chat_with_investigation(investigation_id: str, message: str) -> str:
     response = provider.chat_response(message, context)
     inv.chat_messages.append({"role": "user", "content": message, "timestamp": datetime.utcnow().isoformat()})
     inv.chat_messages.append({"role": "assistant", "content": response, "timestamp": datetime.utcnow().isoformat()})
+    _save_store()
     return response
 
 

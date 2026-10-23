@@ -75,6 +75,7 @@ logs/
 *.bak
 *.swp
 *~
+*investigations_store.json
 
 # Operating System & IDE
 .DS_Store
